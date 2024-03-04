@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Client;
 use App\Entity\FichierAdmin;
 use App\Form\ClientType;
+use App\Repository\CalendarRepository;
 use App\Service\FormError;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,15 +16,48 @@ use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Security;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 class HomeController extends AbstractController
 {
     use FileTrait;
     protected const UPLOAD_PATH = 'media_entreprise';
     #[Route(path: '/home', name: 'app_default')]
-    public function index(Request $request): Response
+    public function index(Request $request, CalendarRepository $repository, NormalizerInterface $normalizer): Response
     {
-        return $this->render('home/index.html.twig');
+
+        $listes = $repository->getEvenement();
+        $ligne = $repository->findAll();
+        //  dd($listes);
+        $rdvs = [];
+
+        foreach ($ligne as $data) {
+            $rdvs[] = [
+                'id' => $data->getId(),
+                'start' => $data->getStart()->format('Y-m-d H:i:s'),
+                'end' => $data->getEnd()->format('Y-m-d H:i:s'),
+                'description' => $data->getDescription(),
+                'title' => $data->getTitle(),
+                'allDay' => $data->getAllDay(),
+                'backgroundColor' => $data->getBackgroundColor(),
+                'borderColor' => $data->getBorderColor(),
+                'textColor' => $data->getTextColor(),
+            ];
+        }
+
+        $data =  json_encode($rdvs);
+
+        return $this->render('home/index.html.twig', compact('data', 'listes'));
+    }
+
+
+    #[Route('/admin/{id}/event', name: 'event_detaiils', methods: ['GET', 'POST'])]
+    public function detailsEvent($id, CalendarRepository $repository)
+    {
+        return $this->render('home/info.html.twig', [
+            'titre' => 'EVENEMENT',
+            'data' => $repository->findOneBy(['id' => $id])
+        ]);
     }
 
     #[Route('/error_page', name: 'page_error_index', methods: ['GET', 'POST'])]
